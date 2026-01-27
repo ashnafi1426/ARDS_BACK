@@ -1,0 +1,40 @@
+{
+  "name": "ards_back",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "type": "module",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ashnafi1426/ARDS_BACK.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ashnafi1426/ARDS_BACK/issues"
+  },
+  "homepage": "https://github.com/ashnafi1426/ARDS_BACK#readme",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.91.1",
+    "bcrypt": "^6.0.0",
+    "body-parser": "^2.2.2",
+    "cors": "^2.8.6",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "express-validator": "^7.3.1",
+    "jsonwebtoken": "^9.0.3",
+    "mysql2": "^3.16.1",
+    "nodemailer": "^7.0.12",
+    "nviron": "^2.1.7",
+    "sequelize": "^6.37.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}
