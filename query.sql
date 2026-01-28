@@ -1,140 +1,156 @@
--- ============================================================
--- ACADEMIC RISK DETECTION SYSTEM
--- PostgreSQL Schema (Auto-increment INT IDs)
--- ============================================================
+-- =========================================
+-- ENABLE REQUIRED EXTENSION
+-- =========================================
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- ============================================================
--- 1. USERS TABLE
--- ============================================================
-CREATE TABLE IF NOT EXISTS users (
-  id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  email TEXT UNIQUE NOT NULL,
-  password TEXT NOT NULL,
-  first_name TEXT,
-  last_name TEXT,
-  role TEXT CHECK (role IN ('student', 'advisor', 'admin')) NOT NULL DEFAULT 'student',
-  phone_number TEXT,
-  profile_picture_url TEXT,
-  is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
+-- =========================================
+-- USERS TABLE (AUTH & ROLES)
+-- =========================================
+CREATE TABLE IF NOT EXISTS public.users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    role TEXT CHECK (role IN ('student', 'advisor', 'admin')) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_role ON users(role);
-CREATE INDEX idx_users_created_at ON users(created_at);
-
--- ============================================================
--- 2. STUDENTS TABLE
--- ============================================================
-CREATE TABLE IF NOT EXISTS students (
-  id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  user_id INT UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  student_number TEXT UNIQUE NOT NULL,
-  program TEXT,
-  year_of_study INT CHECK (year_of_study BETWEEN 1 AND 6),
-  gpa NUMERIC(3,2) CHECK (gpa BETWEEN 0 AND 4),
-  created_at TIMESTAMPTZ DEFAULT now()
+-- =========================================
+-- ADVISORS TABLE
+-- =========================================
+CREATE TABLE IF NOT EXISTS public.advisors (
+    advisor_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID UNIQUE REFERENCES public.users(id) ON DELETE CASCADE,
+    full_name TEXT NOT NULL,
+    department TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_students_user_id ON students(user_id);
-CREATE INDEX idx_students_student_number ON students(student_number);
-CREATE INDEX idx_students_program ON students(program);
-
--- ============================================================
--- 3. ADVISORS TABLE
--- ============================================================
-CREATE TABLE IF NOT EXISTS advisors (
-  id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  user_id INT UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  department TEXT,
-  specialization TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
+-- =========================================
+-- STUDENTS TABLE
+-- =========================================
+CREATE TABLE IF NOT EXISTS public.students (
+    student_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID UNIQUE REFERENCES public.users(id) ON DELETE CASCADE,
+    full_name TEXT NOT NULL,
+    department TEXT,
+    year_of_study INTEGER,
+    gpa NUMERIC(3,2) DEFAULT 0.00,
+    risk_score NUMERIC DEFAULT 0,
+    risk_level TEXT CHECK (risk_level IN ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL')) DEFAULT 'LOW',
+    advisor_id UUID REFERENCES public.advisors(advisor_id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_advisors_user_id ON advisors(user_id);
-CREATE INDEX idx_advisors_department ON advisors(department);
-
--- ============================================================
--- 4. STUDENT-ADVISOR ASSIGNMENTS
--- ============================================================
-CREATE TABLE IF NOT EXISTS student_advisor_assignments (
-  id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  student_id INT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-  advisor_id INT NOT NULL REFERENCES advisors(id) ON DELETE CASCADE,
-  assigned_date DATE DEFAULT CURRENT_DATE,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE (student_id, advisor_id)
+-- =========================================
+-- COURSES TABLE
+-- =========================================
+CREATE TABLE IF NOT EXISTS public.courses (
+    course_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    course_code TEXT NOT NULL,
+    course_name TEXT NOT NULL,
+    department TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_saa_student_id ON student_advisor_assignments(student_id);
-CREATE INDEX idx_saa_advisor_id ON student_advisor_assignments(advisor_id);
-CREATE INDEX idx_saa_assigned_date ON student_advisor_assignments(assigned_date);
-
--- ============================================================
--- 5. SELF ASSESSMENTS
--- ============================================================
-CREATE TABLE IF NOT EXISTS self_assessments (
-  id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  student_id INT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-  stress_level INT CHECK (stress_level BETWEEN 1 AND 10),
-  study_hours NUMERIC(4,1),
-  sleep_hours NUMERIC(4,1),
-  assessment_date DATE DEFAULT CURRENT_DATE,
-  created_at TIMESTAMPTZ DEFAULT now()
+-- =========================================
+-- ENROLLMENTS (STUDENT - COURSE)
+-- =========================================
+CREATE TABLE IF NOT EXISTS public.enrollments (
+    enrollment_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id UUID REFERENCES public.students(student_id) ON DELETE CASCADE,
+    course_id UUID REFERENCES public.courses(course_id) ON DELETE CASCADE,
+    semester TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_sa_student_id ON self_assessments(student_id);
-CREATE INDEX idx_sa_assessment_date ON self_assessments(assessment_date);
-CREATE INDEX idx_sa_created_at ON self_assessments(created_at);
-
--- ============================================================
--- 6. RISK SCORES
--- ============================================================
-CREATE TABLE IF NOT EXISTS risk_scores (
-  id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  student_id INT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-  overall_risk_score NUMERIC(3,2),
-  risk_level TEXT CHECK (risk_level IN ('low', 'medium', 'high', 'critical')),
-  assessment_date DATE DEFAULT CURRENT_DATE,
-  created_at TIMESTAMPTZ DEFAULT now()
+-- =========================================
+-- ATTENDANCE TABLE
+-- =========================================
+CREATE TABLE IF NOT EXISTS public.attendance (
+    attendance_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id UUID REFERENCES public.students(student_id) ON DELETE CASCADE,
+    course_id UUID REFERENCES public.courses(course_id) ON DELETE CASCADE,
+    attendance_date DATE NOT NULL,
+    is_present BOOLEAN DEFAULT FALSE,
+    remarks TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_rs_student_id ON risk_scores(student_id);
-CREATE INDEX idx_rs_risk_level ON risk_scores(risk_level);
-CREATE INDEX idx_rs_assessment_date ON risk_scores(assessment_date);
-CREATE INDEX idx_rs_created_at ON risk_scores(created_at);
+CREATE INDEX IF NOT EXISTS idx_attendance_student ON public.attendance(student_id);
+CREATE INDEX IF NOT EXISTS idx_attendance_date ON public.attendance(attendance_date);
 
--- ============================================================
--- 7. INTERVENTIONS
--- ============================================================
-CREATE TABLE IF NOT EXISTS interventions (
-  id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  student_id INT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-  advisor_id INT REFERENCES advisors(id) ON DELETE SET NULL,
-  description TEXT,
-  status TEXT CHECK (status IN ('pending','in_progress','completed')) DEFAULT 'pending',
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
+-- =========================================
+-- ASSIGNMENTS TABLE
+-- =========================================
+CREATE TABLE IF NOT EXISTS public.assignments (
+    assignment_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    course_id UUID REFERENCES public.courses(course_id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    due_date DATE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_int_student_id ON interventions(student_id);
-CREATE INDEX idx_int_advisor_id ON interventions(advisor_id);
-CREATE INDEX idx_int_status ON interventions(status);
-CREATE INDEX idx_int_created_at ON interventions(created_at);
-
--- ============================================================
--- 8. NOTIFICATIONS
--- ============================================================
-CREATE TABLE IF NOT EXISTS notifications (
-  id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  recipient_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  title TEXT NOT NULL,
-  message TEXT,
-  is_read BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT now()
+-- =========================================
+-- ASSIGNMENT SUBMISSIONS
+-- =========================================
+CREATE TABLE IF NOT EXISTS public.assignment_submissions (
+    submission_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    assignment_id UUID REFERENCES public.assignments(assignment_id) ON DELETE CASCADE,
+    student_id UUID REFERENCES public.students(student_id) ON DELETE CASCADE,
+    submitted_at TIMESTAMP WITH TIME ZONE,
+    status TEXT CHECK (status IN ('SUBMITTED', 'LATE', 'MISSING')) DEFAULT 'MISSING'
 );
 
-CREATE INDEX idx_not_recipient_id ON notifications(recipient_id);
-CREATE INDEX idx_not_is_read ON notifications(is_read);
-CREATE INDEX idx_not_created_at ON notifications(created_at);
+-- =========================================
+-- WEEKLY SELF-CHECK TABLE
+-- =========================================
+CREATE TABLE IF NOT EXISTS public.self_checks (
+    self_check_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id UUID REFERENCES public.students(student_id) ON DELETE CASCADE,
+    stress_level INTEGER CHECK (stress_level BETWEEN 1 AND 5),
+    study_hours INTEGER,
+    workload_difficulty INTEGER CHECK (workload_difficulty BETWEEN 1 AND 5),
+    sleep_quality INTEGER CHECK (sleep_quality BETWEEN 1 AND 5),
+    financial_concern INTEGER CHECK (financial_concern BETWEEN 1 AND 5),
+    motivation_level INTEGER CHECK (motivation_level BETWEEN 1 AND 5),
+    comments TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_selfcheck_student ON public.self_checks(student_id);
+
+-- =========================================
+-- RISK HISTORY TABLE
+-- =========================================
+CREATE TABLE IF NOT EXISTS public.risk_history (
+    risk_history_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id UUID REFERENCES public.students(student_id) ON DELETE CASCADE,
+    risk_score NUMERIC,
+    risk_level TEXT,
+    calculated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =========================================
+-- NOTIFICATIONS TABLE
+-- =========================================
+CREATE TABLE IF NOT EXISTS public.notifications (
+    notification_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id UUID REFERENCES public.students(student_id) ON DELETE CASCADE,
+    advisor_id UUID REFERENCES public.advisors(advisor_id) ON DELETE SET NULL,
+    message TEXT NOT NULL,
+    priority TEXT CHECK (priority IN ('LOW', 'MEDIUM', 'HIGH')) DEFAULT 'LOW',
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =========================================
+-- INTERVENTIONS TABLE (ADVISOR ACTIONS)
+-- =========================================
+CREATE TABLE IF NOT EXISTS public.interventions (
+    intervention_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id UUID REFERENCES public.students(student_id) ON DELETE CASCADE,
+    advisor_id UUID REFERENCES public.advisors(advisor_id) ON DELETE SET NULL,
+    notes TEXT,
+    action_taken TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);

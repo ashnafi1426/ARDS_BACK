@@ -13,6 +13,7 @@ router.use(authorize('student'));
 // Student routes
 router.get('/profile', studentController.getProfile);
 router.put('/profile', [
+  body('email').optional().isEmail().withMessage('Invalid email format'),
   body('full_name').optional().isString(),
   body('department').optional().isString(),
   body('year_of_study').optional().isInt()
@@ -31,6 +32,11 @@ router.post('/self-check', [
 router.get('/notifications', studentController.getNotifications);
 router.get('/risk-history', studentController.getRiskHistory);
 router.get('/courses', studentController.getCourses);
-router.get('/assignments', studentController.getAssignments);
+router.get('/assignments', studentController.getAllStudentAssignments);
+router.get('/dashboard-summary', studentController.getDashboardSummary);
+
+// Per-course endpoints
+router.get('/attendance/:courseId', studentController.getCourseAttendance);
+router.get('/courses/:courseId/assignments', studentController.getCourseAssignments);
 
 export default router;

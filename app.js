@@ -8,6 +8,7 @@ import studentRoutes from './routes/student.routes.js';
 import advisorRoutes from './routes/advisor.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import notificationRoutes from './routes/notification.routes.js';
+import assignmentRoutes from './routes/assignment.routes.js';
 import { env } from './config/env.js';
 
 // Load environment variables
@@ -26,6 +27,7 @@ app.use('/api/students', studentRoutes);
 app.use('/api/advisors', advisorRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/assignments', assignmentRoutes);
 
 // Test route
 app.get('/', (req, res) => {
