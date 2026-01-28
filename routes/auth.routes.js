@@ -8,9 +8,10 @@ const router = express.Router();
 const registerValidation = [
   body('email').isEmail().withMessage('Invalid email address'),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
-  body('first_name').notEmpty().withMessage('First name is required'),
-  body('last_name').notEmpty().withMessage('Last name is required'),
+  body('full_name').notEmpty().withMessage('Full name is required'),
   body('role').isIn(['student', 'advisor', 'admin']).withMessage('Invalid role'),
+  body('student_number').optional().isString().withMessage('Student number must be a string'),
+  body('department').optional().isString().withMessage('Department must be a string'),
 ];
 
 // Validation rules for login
